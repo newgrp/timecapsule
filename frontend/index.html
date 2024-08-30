@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="./style.css">
+    <title>Time Capsule</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Message Encryptor</h1>
+        <form id="encryptForm">
+            <label for="message">Message:</label>
+            <textarea id="message" required></textarea>
+
+            <label for="datetime">Date and Time:</label>
+            <input type="datetime-local" name="datetime" id="encryptDatetime" required>
+
+            <label for="timezone">Timezone:</label>
+            <select name="timezone" id="encryptTimezone" required></select>
+
+            <button type="submit" id="encryptButton">Encrypt</button>
+        </form>
+        <div class="result" id="encryptResult"></div>
+    </div>
+
+    <div class="container">
+        <h1>Message Decryptor</h1>
+        <form id="decryptForm">
+            <label for="encryptedMessage">Encrypted Message:</label>
+            <textarea id="encryptedMessage" required></textarea>
+
+            <label for="datetime">Date and Time:</label>
+            <input type="datetime-local" name="datetime" id="decryptDatetime" required>
+
+            <label for="timezone">Timezone:</label>
+            <select name="timezone" id="decryptTimezone" required></select>
+
+            <button type="submit" id="decryptButton">Decrypt</button>
+        </form>
+        <div class="result" id="decryptResult"></div>
+    </div>
+
+    <!-- Update from https://cdnjs.com/libraries/dayjs. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/dayjs.min.js"
+        integrity="sha512-FwNWaxyfy2XlEINoSnZh1JQ5TRRtGow0D6XcmAWmYCRgvqOUTnzCxPc9uF35u5ZEpirk1uhlPVA19tflhvnW1g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/plugin/utc.min.js"
+        integrity="sha512-z84O912dDT9nKqvpBnl1tri5IN0j/OEgMzLN1GlkpKLMscs5ZHVu+G2CYtA6dkS0YnOGi3cODt3BOPnYc8Agjg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/plugin/timezone.min.js"
+        integrity="sha512-nrkE2nl0pcqWefIY627DY1exPOSuZXMdOrxMxX0y7Ly6RH8K0WDjO1lqakkxQcX5m8hxoUSt75seRRiyhqPvIw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <script type="module" src="./main.js"></script>
+</body>
+
+</html>
