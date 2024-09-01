@@ -4,8 +4,8 @@ import "sync"
 
 // A synchronized cell containing a value of type T.
 //
-// Data that has been stored in a muCell must not be modified thereafter,
-// regardless of whether it is still in the cell.
+// Data that has been stored in a muCell must not be modified thereafter, regardless of whether it
+// is still in the cell.
 type muCell[T any] struct {
 	mu    sync.Mutex
 	value T

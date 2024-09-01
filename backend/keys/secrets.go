@@ -18,8 +18,8 @@ const (
 
 	// Length of time that each secret covers.
 	//
-	// Secret intervals are also aligned to this period, with the Unix epoch
-	// considered to be the zero time.
+	// Secret intervals are also aligned to this period, with the Unix epoch considered to be the
+	// zero time.
 	secretInterval = time.Hour
 
 	// Layout for time file names. See https://pkg.go.dev/time#Layout for context.
@@ -49,8 +49,8 @@ func newSecretManager(dir string) (*secretManager, error) {
 
 // Reads a secret file from disk, or false if no such file exists.
 func (s *secretManager) readSecretFile(path string) (secret []byte, exists bool, err error) {
-	// Another thread might be writing the file concurrently, so read in a loop
-	// until the secret is the expected length.
+	// Another thread might be writing the file concurrently, so read in a loop until the secret is
+	// the expected length.
 	for len(secret) < secretSize {
 		secret, err = os.ReadFile(path)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -68,8 +68,7 @@ func (s *secretManager) createSecretFile(path string) ([]byte, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
-	// First try to read the file, in case another thread created it before we
-	// acquired the lock.
+	// First try to read the file, in case another thread created it before we acquired the lock.
 	secret, ok, err := s.readSecretFile(path)
 	if err != nil {
 		return nil, err
@@ -93,9 +92,8 @@ func (s *secretManager) createSecretFile(path string) ([]byte, error) {
 //
 // Different times may share a root secret.
 //
-// Times are normalized to UTC time internally, so different time.Time values
-// representing the same absolute time are guaranteed to have the same root
-// secret.
+// Times are normalized to UTC time internally, so different time.Time values representing the same
+// absolute time are guaranteed to have the same root secret.
 func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	file := t.Truncate(secretInterval).UTC().Format(fileNameLayout)
 	path := path.Join(s.dir, file)

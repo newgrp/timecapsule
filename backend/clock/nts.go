@@ -46,8 +46,8 @@ func readTime(session *nts.Session) (clockReading, error) {
 		return clockReading{}, fmt.Errorf("failed to query time from NTS server: %w", err)
 	}
 
-	// Read the system time after obtaining the NTS time in order to err on the
-	// side of underestimating the current time.
+	// Read the system time after obtaining the NTS time in order to err on the side of
+	// underestimating the current time.
 	nts := resp.Time
 	system := time.Now()
 	return clockReading{nts: nts, system: system}, nil
@@ -109,8 +109,7 @@ func (p *ntsPoller) pollOnce(reinit bool) bool {
 
 // Periodically updates the clock reading cell. Never returns.
 //
-// If polls fail consecutively, a new session will be established, possibly with
-// a different server.
+// If polls fail consecutively, a new session will be established, possibly with a different server.
 func (p *ntsPoller) PollLoop() {
 	consecutiveFailures := 0
 	for {

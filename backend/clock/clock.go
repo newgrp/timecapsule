@@ -27,15 +27,14 @@ func NewSecureClock(ntsAddrs []string) (*SecureClock, error) {
 
 // Returns a secure estimate of the current time.
 //
-// Now computes the current time as the last time obtained from the NTS server,
-// plus the difference in monotonic clock readings between when Now is called
-// and when the NTS response was obtained. When uncertainty arises, Now prefers
-// to err on the side of underestimating the current time.
+// Now computes the current time as the last time obtained from the NTS server, plus the difference
+// in monotonic clock readings between when Now is called and when the NTS response was obtained.
+// When uncertainty arises, Now prefers to err on the side of underestimating the current time.
 func (c *SecureClock) Now() (time.Time, error) {
 	last := c.cell.Get()
 
-	// time.Since uses the system monotic clock, rather than the realtime clock,
-	// so we are not significantly exposed to NTP attacks on the system clock.
+	// time.Since uses the system monotic clock, rather than the realtime clock, so we are not
+	// significantly exposed to NTP attacks on the system clock.
 	delta := time.Since(last.system)
 	if delta >= ntsStaleThreshold {
 		return time.Time{}, fmt.Errorf("NTS time is too stale")

@@ -1,4 +1,4 @@
-// Package keys associates times to Curve 25519 keypairs.
+// Package keys associates times to P-256 keypairs.
 package keys
 
 import (
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// KeyManager associates times to Curve 25519 keypairs.
+// KeyManager associates times to P-256 key pairs.
 type KeyManager struct {
 	secrets *secretManager
 }
@@ -21,11 +21,10 @@ func NewKeyManager(secretsDir string) (*KeyManager, error) {
 	return &KeyManager{secrets}, nil
 }
 
-// Returns the DER-encoded Curve25519 private key for the given time.
+// Returns the P-256 key pair for the given time.
 //
-// Times are normalized to UTC time internally, so different time.Time values
-// that refer to the same absolute time are guaranteed to correspond to the same
-// key.
+// Times are normalized to UTC time internally, so different time.Time values that refer to the
+// same absolute time are guaranteed to correspond to the same key.
 func (m *KeyManager) GetKeyForTime(t time.Time) (*ecdh.PrivateKey, error) {
 	secret, err := m.secrets.GetSecretForTime(t)
 	if err != nil {

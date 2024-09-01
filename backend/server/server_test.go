@@ -79,7 +79,7 @@ func httpGetOK(url string) (string, error) {
 	return string(body), nil
 }
 
-// Parses a PEM-encoded X25519 public key.
+// Parses a PEM-encoded ECDH public key.
 func parsePEMPublicKey(s string) (*ecdh.PublicKey, error) {
 	block, _ := pem.Decode([]byte(s))
 	if block == nil {
@@ -95,13 +95,13 @@ func parsePEMPublicKey(s string) (*ecdh.PublicKey, error) {
 	}
 	ec := key.(*ecdh.PublicKey)
 	if ec == nil {
-		return nil, fmt.Errorf("Key is not an X25519 key, instead %T", key)
+		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
 	}
 
 	return ec, nil
 }
 
-// Parses a PEM-encoded X25519 private key.
+// Parses a PEM-encoded ECDH private key.
 func parsePEMPrivateKey(s string) (*ecdh.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(s))
 	if block == nil {
@@ -117,7 +117,7 @@ func parsePEMPrivateKey(s string) (*ecdh.PrivateKey, error) {
 	}
 	ec := key.(*ecdh.PrivateKey)
 	if ec == nil {
-		return nil, fmt.Errorf("Key is not an X25519 key, instead %T", key)
+		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
 	}
 
 	return ec, nil
