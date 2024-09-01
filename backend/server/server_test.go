@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"crypto/ecdh"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -93,12 +94,14 @@ func parsePEMPublicKey(s string) (*ecdh.PublicKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse ASN.1: %w", err)
 	}
-	ec := key.(*ecdh.PublicKey)
-	if ec == nil {
+	switch k := key.(type) {
+	case *ecdh.PublicKey:
+		return k, nil
+	case *ecdsa.PublicKey:
+		return k.ECDH()
+	default:
 		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
 	}
-
-	return ec, nil
 }
 
 // Parses a PEM-encoded ECDH private key.
@@ -115,12 +118,14 @@ func parsePEMPrivateKey(s string) (*ecdh.PrivateKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse ASN.1: %w", err)
 	}
-	ec := key.(*ecdh.PrivateKey)
-	if ec == nil {
+	switch k := key.(type) {
+	case *ecdh.PrivateKey:
+		return k, nil
+	case *ecdsa.PrivateKey:
+		return k.ECDH()
+	default:
 		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
 	}
-
-	return ec, nil
 }
 
 // Starts an HTTP server and returns its address.
