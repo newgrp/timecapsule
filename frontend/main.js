@@ -5,22 +5,47 @@ import {
   utf8Decode,
   utf8Encode,
 } from "./modules/bytes.js";
-import { eciesDecrypt, eciesEncrypt } from "./modules/ecies.js";
+import {
+  eciesDecrypt,
+  eciesEncrypt,
+} from "https://unpkg.com/ecies-web@0.1.0/ecies.js";
 
 dayjs.extend(dayjs_plugin_utc);
 dayjs.extend(dayjs_plugin_timezone);
 
+const eciesParams = {
+  format: "asn1",
+  ecParams: { name: "ECDH", namedCurve: "P-256" },
+  hkdfParams: { name: "HKDF", hash: "SHA-256" },
+  aesParams: "AES-CTR",
+  hmacParams: { name: "HMAC", hash: "SHA-256" },
+};
+
 // Encrypts a message to the given `dayjs` date and time.
 async function encryptMessage(message, datetime) {
   const pubKey = await getPublicKey(datetime);
-  const blob = await eciesEncrypt(pubKey, utf8Encode(message));
-  return base64Encode(blob);
+  const encryptedData = await eciesEncrypt(
+    eciesParams,
+    pubKey,
+    utf8Encode(message)
+  );
+  return JSON.stringify({
+    eph: base64Encode(encryptedData.ephemeralPublicKey),
+    ciph: base64Encode(encryptedData.ciphertext),
+    hmac: base64Encode(encryptedData.hmac),
+  });
 }
 
 // Decrypts a message for the given `dayjs` date and time.
 async function decryptMessage(encryptedMessage, datetime) {
+  const json = JSON.parse(encryptedMessage);
+
   const keyPair = await getPrivateKey(datetime);
-  const decrypted = await eciesDecrypt(keyPair, base64Decode(encryptedMessage));
+  const decrypted = await eciesDecrypt(eciesParams, keyPair, {
+    ephemeralPublicKey: base64Decode(json.eph),
+    ciphertext: base64Decode(json.ciph),
+    hmac: base64Decode(json.hmac),
+  });
   return utf8Decode(decrypted);
 }
 
@@ -59,11 +84,11 @@ document
     // TODO: Compute date in timezone.
 
     encryptMessage(message, datetime)
-      .catch((e) => {
-        console.error(e);
-      })
       .then((result) => {
         document.getElementById("encryptResult").textContent = result;
+      })
+      .catch((e) => {
+        console.error(e);
       });
   });
 
@@ -77,10 +102,10 @@ document
     // TODO: Compute date in timezone.
 
     decryptMessage(encryptedMessage, datetime)
-      .catch((e) => {
-        console.error(e);
-      })
       .then((result) => {
         document.getElementById("decryptResult").textContent = result;
+      })
+      .catch((e) => {
+        console.error(e);
       });
   });

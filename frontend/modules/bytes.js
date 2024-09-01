@@ -16,12 +16,24 @@ export function base64Decode(base64) {
 
 // Converts a `Uint8Array` to a base64-encoded `string`.
 export function base64Encode(bytes) {
-  const binString = String.fromCharCode.apply(null, bytes);
+  const binString = String.fromCharCode.apply(null, new Uint8Array(bytes));
   return btoa(binString);
 }
 
 // Concatenates byte arrays.
-export async function concatByteArrays(...arrays) {
-  const blob = new Blob(arrays.map((arr) => new Uint8Array(arr)));
-  return new Uint8Array(await blob.arrayBuffer());
+export function concatByteArrays(...arrays) {
+  let u8arrays = arrays.map((arr) => new Uint8Array(arr));
+
+  let length = 0;
+  for (const arr of u8arrays) {
+    length += arr.length;
+  }
+
+  let ret = new Uint8Array(length);
+  let idx = 0;
+  for (const arr of u8arrays) {
+    ret.set(arr, idx);
+    idx += arr.length;
+  }
+  return ret;
 }
