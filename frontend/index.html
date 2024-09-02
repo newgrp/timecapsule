@@ -10,36 +10,46 @@
 
 <body>
     <div class="container">
-        <h1>Message Encryptor</h1>
-        <form id="encryptForm">
-            <label for="message">Message:</label>
-            <textarea id="message" required></textarea>
-
-            <label for="datetime">Date and Time:</label>
-            <input type="datetime-local" name="datetime" id="datetime" required>
-
-            <label for="timezone">Timezone:</label>
-            <select name="timezone" id="timezone" required></select>
-
-            <button type="submit" id="encryptButton">Encrypt</button>
-        </form>
-        <div class="result" id="encryptResult">
-            <div class="resultOk" id="encryptResultOk"></div>
-            <div class="resultErr" id="encryptResultErr"></div>
+        <div class="title-box">
+            <h1>Time Capsule</h1>
+            <p>Encrypt your data to a given time!</p>
+            <p>Decrypt it only after that time!</p>
         </div>
-    </div>
-
-    <div class="container">
-        <h1>Message Decryptor</h1>
-        <form id="decryptForm">
-            <label for="encryptedMessage">Encrypted Message:</label>
-            <textarea id="encryptedMessage" required></textarea>
-
-            <button type="submit" id="decryptButton">Decrypt</button>
-        </form>
-        <div class="result" id="decryptResult">
-            <div class="resultOk" id="decryptResultOk"></div>
-            <div class="resultErr" id="decryptResultErr"></div>
+    
+        <div class="form-container">
+            <div class="form-box">
+                <h2>Encrypt</h2>
+                <form id="encryptForm">
+                    <label for="message">Message:</label>
+                    <textarea id="message" required></textarea>
+        
+                    <label for="datetime">Date and Time:</label>
+                    <input type="datetime-local" name="datetime" id="datetime" required>
+        
+                    <label for="timezone">Timezone:</label>
+                    <select name="timezone" id="timezone" required></select>
+        
+                    <button type="submit" id="encryptButton">Encrypt</button>
+                </form>
+                <div class="result" id="encryptResult">
+                    <div class="resultOk" id="encryptResultOk"></div>
+                    <div class="resultErr" id="encryptResultErr"></div>
+                </div>
+            </div>
+        
+            <div class="form-box">
+                <h2>Decrypt</h2>
+                <form id="decryptForm">
+                    <label for="encryptedMessage">Encrypted Message:</label>
+                    <textarea id="encryptedMessage" required></textarea>
+        
+                    <button type="submit" id="decryptButton">Decrypt</button>
+                </form>
+                <div class="result" id="decryptResult">
+                    <div class="resultOk" id="decryptResultOk"></div>
+                    <div class="resultErr" id="decryptResultErr"></div>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -94,7 +94,7 @@ document
       })
       .catch((e) => {
         document.getElementById("encryptResultOk").textContent = "";
-        document.getElementById("encryptResultErr").textContent = e.toString();
+        document.getElementById("encryptResultErr").textContent = e.message;
       });
   });
 
@@ -112,6 +112,6 @@ document
       })
       .catch((e) => {
         document.getElementById("decryptResultOk").textContent = "";
-        document.getElementById("decryptResultErr").textContent = e.toString();
+        document.getElementById("decryptResultErr").textContent = e.message;
       });
   });
