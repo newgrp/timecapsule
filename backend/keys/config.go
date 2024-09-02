@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const fileMode = 0o444
+
 // A source for a PKI configuration variable.
 type configSource interface {
 	// Reads the configuration value from the source.
@@ -67,8 +69,11 @@ func (f *fileSource) Set(value string) error {
 	if err != nil {
 		return err
 	}
-	if ok && strings.TrimSpace(value) != strings.TrimSpace(string(b)) {
-		return fmt.Errorf("inferred value differs from value at %s: got %s, want %s", f.path, strings.TrimSpace(value), strings.TrimSpace(string(b)))
+	if ok {
+		if strings.TrimSpace(value) != strings.TrimSpace(string(b)) {
+			return fmt.Errorf("inferred value differs from value at %s: got %s, want %s", f.path, strings.TrimSpace(value), strings.TrimSpace(string(b)))
+		}
+		return nil
 	}
 
 	if value != "" && value[len(value)-1] != '\n' {

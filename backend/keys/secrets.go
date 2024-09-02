@@ -31,7 +31,7 @@ const (
 	fileNameLayout = "2006-01-02@15.04.05"
 
 	// Creation mode for info and secret files.
-	fileMode = 0o400
+	secretMode = 0o400
 )
 
 // Associates each time with a root secret.
@@ -118,7 +118,7 @@ func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
 		return nil, fmt.Errorf("insufficient entropy: %w", err)
 	}
-	if err := os.WriteFile(path, secret, fileMode); err != nil {
+	if err := os.WriteFile(path, secret, secretMode); err != nil {
 		return nil, fmt.Errorf("failed to write secret file %s: %w", path, err)
 	}
 	return secret, nil
