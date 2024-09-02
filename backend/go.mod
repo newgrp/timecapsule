@@ -1,4 +1,4 @@
-module github.com/newgrp/timekey
+module github.com/newgrp/timecapsule
 
 go 1.23.0
 

@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/newgrp/timekey/server"
+	"github.com/newgrp/timecapsule/server"
 )
 
 const (

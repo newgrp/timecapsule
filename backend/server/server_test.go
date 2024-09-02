@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/newgrp/timekey/keys"
-	"github.com/newgrp/timekey/server"
+	"github.com/newgrp/timecapsule/keys"
+	"github.com/newgrp/timecapsule/server"
 )
 
 // Long enough away from now to be definitively in the past or the future.

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/newgrp/timekey/clock"
-	"github.com/newgrp/timekey/keys"
+	"github.com/newgrp/timecapsule/clock"
+	"github.com/newgrp/timecapsule/keys"
 )
 
 const (

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/newgrp/timekey/keys"
+	"github.com/newgrp/timecapsule/keys"
 )
 
 func TestDeterminism(t *testing.T) {
