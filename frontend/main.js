@@ -23,14 +23,16 @@ const eciesParams = {
 
 // Encrypts a message to the given `dayjs` date and time.
 async function encryptMessage(message, datetime) {
-  const pubKey = await getPublicKey(datetime);
+  const resp = await getPublicKey(datetime);
   const encryptedData = await eciesEncrypt(
     eciesParams,
-    pubKey,
+    resp.spki,
     utf8Encode(message)
   );
 
   return JSON.stringify({
+    pkiName: resp.pkiName,
+    pkiID: resp.pkiID,
     time: datetime.utc().format(),
     eph: base64Encode(encryptedData.ephemeralPublicKey),
     ciph: base64Encode(encryptedData.ciphertext),
@@ -41,9 +43,9 @@ async function encryptMessage(message, datetime) {
 // Decrypts a message for the given `dayjs` date and time.
 async function decryptMessage(encryptedMessage) {
   const json = JSON.parse(encryptedMessage);
-  const keyPair = await getPrivateKey(dayjs(json.time));
+  const resp = await getPrivateKey(json.pkiID, dayjs(json.time));
 
-  const decrypted = await eciesDecrypt(eciesParams, keyPair, {
+  const decrypted = await eciesDecrypt(eciesParams, resp.pkcs8, {
     ephemeralPublicKey: base64Decode(json.eph),
     ciphertext: base64Decode(json.ciph),
     hmac: base64Decode(json.hmac),
