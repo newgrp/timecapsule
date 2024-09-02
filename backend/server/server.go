@@ -1,10 +1,13 @@
 package server
 
 import (
+	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/newgrp/timekey/clock"
@@ -19,6 +22,14 @@ const (
 	methodGetPublicKey  = "get_public_key"
 	methodGetPrivateKey = "get_private_key"
 )
+
+type GetPublicKeyResp struct {
+	SPKI []byte `json:"spki"`
+}
+
+type GetPrivateKeyResp struct {
+	PKCS8 []byte `json:"pkcs8"`
+}
 
 // Parses a time string, which may be either:
 //
@@ -37,8 +48,9 @@ func parseTime(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("time must be given either as integer seconds since the Unix epoch or RFC 3339 string")
 }
 
-// HTTP handler that only depends on URL parameters. Returns (HTTP status code, body).
-type simpleHandler = func(url.Values) (int, string)
+// HTTP handler that only depends on URL parameters. Returns (JSON-encodable value, HTTP status
+// code, error message).
+type simpleHandler = func(url.Values) (any, int, string)
 
 // makeHandler converts a simpleHandler to an http.HandlerFunc.
 func makeHandler(h simpleHandler) http.HandlerFunc {
@@ -50,7 +62,22 @@ func makeHandler(h simpleHandler) http.HandlerFunc {
 			return
 		}
 
-		status, body := h(query)
+		value, status, message := h(query)
+
+		var body string
+		if status == http.StatusOK {
+			b := &strings.Builder{}
+			e := json.NewEncoder(b)
+			e.SetEscapeHTML(false)
+			if err = e.Encode(value); err != nil {
+				log.Printf("ERROR: Failed to encode value of type %T as JSON: %v", value, err)
+				resp.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			body = b.String()
+		} else {
+			body = message
+		}
 		if len(body) != 0 && body[len(body)-1] != '\n' {
 			body = fmt.Sprintf("%s\n", body)
 		}
@@ -89,13 +116,13 @@ func NewServer(opts Options) (*Server, error) {
 }
 
 // Simple handler for public key requests.
-func (s *Server) getPublicKey(query url.Values) (int, string) {
+func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string) {
 	if !query.Has(argTime) {
-		return http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
+		return nil, http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
 	}
 	t, err := parseTime(query.Get(argTime))
 	if err != nil {
-		return http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
+		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
 	}
 
 	// Don't expose internal error details to clients. Instead, log the full error but return a
@@ -105,33 +132,33 @@ func (s *Server) getPublicKey(query url.Values) (int, string) {
 	priv, err := s.keys.GetKeyForTime(t)
 	if err != nil {
 		log.Printf("ERROR: Failed to retrieve key for time %s: %+v", t.Format(time.RFC3339), err)
-		return http.StatusInternalServerError, internalError
+		return nil, http.StatusInternalServerError, internalError
 	}
 
-	pem, err := keys.FormatPublicKeyAsSPKIPEM(priv.PublicKey())
+	der, err := x509.MarshalPKIXPublicKey(priv.PublicKey())
 	if err != nil {
 		log.Printf("ERROR: Failed to marshal public key for time %s: %+v", t.Format(time.RFC3339), err)
-		return http.StatusInternalServerError, internalError
+		return nil, http.StatusInternalServerError, internalError
 	}
-	return http.StatusOK, pem
+	return &GetPublicKeyResp{SPKI: der}, http.StatusOK, ""
 }
 
 // Simple handler for private key requests.
-func (s *Server) getPrivateKey(query url.Values) (int, string) {
+func (s *Server) getPrivateKey(query url.Values) (*GetPrivateKeyResp, int, string) {
 	if !query.Has(argTime) {
-		return http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
+		return nil, http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
 	}
 	t, err := parseTime(query.Get(argTime))
 	if err != nil {
-		return http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
+		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
 	}
 
 	now, err := s.clock.Now()
 	if err != nil {
-		return http.StatusInternalServerError, "Server could securely determine the current time"
+		return nil, http.StatusInternalServerError, "Server could securely determine the current time"
 	}
 	if t.After(now) {
-		return http.StatusForbidden, "Server does not disclose private keys for future timestamps"
+		return nil, http.StatusForbidden, "Server does not disclose private keys for future timestamps"
 	}
 
 	// Don't expose internal error details to clients. Instead, log the full error but return a
@@ -141,15 +168,15 @@ func (s *Server) getPrivateKey(query url.Values) (int, string) {
 	priv, err := s.keys.GetKeyForTime(t)
 	if err != nil {
 		log.Printf("ERROR: Failed to retrieve key for time %s: %+v", t.Format(time.RFC3339), err)
-		return http.StatusInternalServerError, internalError
+		return nil, http.StatusInternalServerError, internalError
 	}
 
-	pem, err := keys.FormatPrivateKeyAsPKCS8PEM(priv)
+	der, err := x509.MarshalPKCS8PrivateKey(priv)
 	if err != nil {
 		log.Printf("ERROR: Failed to marshal private key for time %s: %+v", t.Format(time.RFC3339), err)
-		return http.StatusInternalServerError, internalError
+		return nil, http.StatusInternalServerError, internalError
 	}
-	return http.StatusOK, string(pem)
+	return &GetPrivateKeyResp{PKCS8: der}, http.StatusOK, ""
 }
 
 // Registers handlers for the following methods:
@@ -157,10 +184,10 @@ func (s *Server) getPrivateKey(query url.Values) (int, string) {
 //   - GET /v0/get_public_key
 //   - GET /v0/get_private_key
 func (s *Server) RegisterHandlers(mux *http.ServeMux) {
-	mux.HandleFunc(fmt.Sprintf("GET /v0/%s", methodGetPublicKey), makeHandler(func(query url.Values) (int, string) {
+	mux.HandleFunc(fmt.Sprintf("GET /v0/%s", methodGetPublicKey), makeHandler(func(query url.Values) (any, int, string) {
 		return s.getPublicKey(query)
 	}))
-	mux.HandleFunc(fmt.Sprintf("GET /v0/%s", methodGetPrivateKey), makeHandler(func(query url.Values) (int, string) {
+	mux.HandleFunc(fmt.Sprintf("GET /v0/%s", methodGetPrivateKey), makeHandler(func(query url.Values) (any, int, string) {
 		return s.getPrivateKey(query)
 	}))
 }

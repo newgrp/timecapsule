@@ -39,17 +39,9 @@ func FormatPrivateKeyAsPKCS8PEM(priv any) (string, error) {
 	return string(p), nil
 }
 
-// Parses a PEM-encoded SubjectPublicKeyInfo message as an ECDH public key.
-func ParseECDHPublicKeyAsSPKIPEM(p string) (*ecdh.PublicKey, error) {
-	block, _ := pem.Decode([]byte(p))
-	if block == nil {
-		return nil, fmt.Errorf("failed to parse public key as PEM block")
-	}
-	if block.Type != pemTypePublicKey {
-		return nil, fmt.Errorf("public key has wrong PEM type: got %s, want %s", block.Type, pemTypePublicKey)
-	}
-
-	parsed, err := x509.ParsePKIXPublicKey(block.Bytes)
+// Parses a DER-encoded SubjectPublicKeyInfo message as an ECDH public key.
+func ParseECDHPublicKeyAsSPKIDER(d []byte) (*ecdh.PublicKey, error) {
+	parsed, err := x509.ParsePKIXPublicKey(d)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse SubjectPublicKeyInfo: %w", err)
 	}
@@ -67,17 +59,21 @@ func ParseECDHPublicKeyAsSPKIPEM(p string) (*ecdh.PublicKey, error) {
 	}
 }
 
-// Parses a PEM-encoded PrivateKeyInfo (a.k.a. PKCS #8) message as an ECDH private key.
-func ParseECDHPrivateKeyAsPKCS8PEM(p string) (*ecdh.PrivateKey, error) {
+// Parses a PEM-encoded SubjectPublicKeyInfo message as an ECDH public key.
+func ParseECDHPublicKeyAsSPKIPEM(p string) (*ecdh.PublicKey, error) {
 	block, _ := pem.Decode([]byte(p))
 	if block == nil {
-		return nil, fmt.Errorf("failed to parse private key as PEM block")
+		return nil, fmt.Errorf("failed to parse public key as PEM block")
 	}
-	if block.Type != pemTypePrivateKey {
-		return nil, fmt.Errorf("private key has wrong PEM type: got %s, want %s", block.Type, pemTypePrivateKey)
+	if block.Type != pemTypePublicKey {
+		return nil, fmt.Errorf("public key has wrong PEM type: got %s, want %s", block.Type, pemTypePublicKey)
 	}
+	return ParseECDHPublicKeyAsSPKIDER(block.Bytes)
+}
 
-	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+// Parses a DER-encoded PrivateKeyInfo (a.k.a. PKCS #8) message as an ECDH private key.
+func ParseECDHPrivateKeyAsPKCS8DER(d []byte) (*ecdh.PrivateKey, error) {
+	parsed, err := x509.ParsePKCS8PrivateKey(d)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse PKCS #8: %w", err)
 	}
@@ -93,4 +89,16 @@ func ParseECDHPrivateKeyAsPKCS8PEM(p string) (*ecdh.PrivateKey, error) {
 	default:
 		return nil, fmt.Errorf("private key is of unsupported type %T", parsed)
 	}
+}
+
+// Parses a PEM-encoded PrivateKeyInfo (a.k.a. PKCS #8) message as an ECDH private key.
+func ParseECDHPrivateKeyAsPKCS8PEM(p string) (*ecdh.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(p))
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse private key as PEM block")
+	}
+	if block.Type != pemTypePrivateKey {
+		return nil, fmt.Errorf("private key has wrong PEM type: got %s, want %s", block.Type, pemTypePrivateKey)
+	}
+	return ParseECDHPrivateKeyAsPKCS8DER(block.Bytes)
 }
