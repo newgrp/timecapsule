@@ -1,31 +1,35 @@
 import { base64Decode } from "./bytes.js";
 
-const tempPkiName = "Placeholder PKI";
-const tempPkiID = "2d2e92bc-3b12-4399-8db1-94bed67ac672";
+const backendURL = "http://localhost:5418";
 
 // Fetches the public key for a given `dayjs` date and time from the backend.
 export async function getPublicKey(datetime) {
-  const tempKey =
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEunp/zYbc+mMz88BWdQ18LgLGjih363YWhl7SADFE6gr0a1UD5Xt0mo5HvXG3c9OCEbbPSjBALglbo7HcqDFtuA==";
+  const resp = await fetch(
+    backendURL + "/v0/get_public_key?time=" + datetime.unix()
+  );
+  if (resp.status != 200) {
+    throw new Error(resp.statusText + ": " + (await resp.text()));
+  }
 
-  return {
-    pkiName: tempPkiName,
-    pkiID: tempPkiID,
-    spki: base64Decode(tempKey),
-  };
+  let ret = await resp.json();
+  ret.spki = base64Decode(ret.spki);
+  return ret;
 }
 
 // Fetches the private key for a given `dayjs` date and time from the backend.
 export async function getPrivateKey(pkiID, datetime) {
-  const tempKey =
-    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg1t9edLackf/bm/356bTu65Z3kazN4EX8v986JyjRDAChRANCAAS6en/Nhtz6YzPzwFZ1DXwuAsaOKHfrdhaGXtIAMUTqCvRrVQPle3Sajke9cbdz04IRts9KMEAuCVujsdyoMW24";
-
-  if (pkiID != tempPkiID) {
-    throw new Error("Unknown PKI: " + pkiID);
+  const resp = await fetch(
+    backendURL +
+      "/v0/get_private_key?pki_id=" +
+      pkiID +
+      "&time=" +
+      datetime.unix()
+  );
+  if (resp.status != 200) {
+    throw new Error(resp.statusText + ": " + (await resp.text()));
   }
-  return {
-    pkiName: tempPkiName,
-    pkiID: tempPkiID,
-    pkcs8: base64Decode(tempKey),
-  };
+
+  let ret = await resp.json();
+  ret.pkcs8 = base64Decode(ret.pkcs8);
+  return ret;
 }
