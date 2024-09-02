@@ -1,8 +1,6 @@
 package server
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,10 +14,6 @@ import (
 const (
 	// Request parameter names.
 	argTime = "time"
-
-	// PEM labels.
-	pemTypePublicKey  = "PUBLIC KEY"
-	pemTypePrivateKey = "PRIVATE KEY"
 
 	// REST method names.
 	methodGetPublicKey  = "get_public_key"
@@ -113,16 +107,13 @@ func (s *Server) getPublicKey(query url.Values) (int, string) {
 		log.Printf("ERROR: Failed to retrieve key for time %s: %+v", t.Format(time.RFC3339), err)
 		return http.StatusInternalServerError, internalError
 	}
-	pub := priv.PublicKey()
 
-	der, err := x509.MarshalPKIXPublicKey(pub)
+	pem, err := keys.FormatPublicKeyAsSPKIPEM(priv.PublicKey())
 	if err != nil {
 		log.Printf("ERROR: Failed to marshal public key for time %s: %+v", t.Format(time.RFC3339), err)
 		return http.StatusInternalServerError, internalError
 	}
-
-	pem := pem.EncodeToMemory(&pem.Block{Type: pemTypePublicKey, Bytes: der})
-	return http.StatusOK, string(pem)
+	return http.StatusOK, pem
 }
 
 // Simple handler for private key requests.
@@ -153,13 +144,11 @@ func (s *Server) getPrivateKey(query url.Values) (int, string) {
 		return http.StatusInternalServerError, internalError
 	}
 
-	der, err := x509.MarshalPKCS8PrivateKey(priv)
+	pem, err := keys.FormatPrivateKeyAsPKCS8PEM(priv)
 	if err != nil {
 		log.Printf("ERROR: Failed to marshal private key for time %s: %+v", t.Format(time.RFC3339), err)
 		return http.StatusInternalServerError, internalError
 	}
-
-	pem := pem.EncodeToMemory(&pem.Block{Type: pemTypePrivateKey, Bytes: der})
 	return http.StatusOK, string(pem)
 }
 

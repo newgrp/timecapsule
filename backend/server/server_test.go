@@ -1,10 +1,6 @@
 package server_test
 
 import (
-	"crypto/ecdh"
-	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
@@ -15,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/newgrp/timekey/keys"
 	"github.com/newgrp/timekey/server"
 )
 
@@ -80,54 +77,6 @@ func httpGetOK(url string) (string, error) {
 	return string(body), nil
 }
 
-// Parses a PEM-encoded ECDH public key.
-func parsePEMPublicKey(s string) (*ecdh.PublicKey, error) {
-	block, _ := pem.Decode([]byte(s))
-	if block == nil {
-		return nil, fmt.Errorf("Not a PEM-encoded string")
-	}
-	if block.Type != "PUBLIC KEY" {
-		return nil, fmt.Errorf("Not a public key")
-	}
-
-	key, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse ASN.1: %w", err)
-	}
-	switch k := key.(type) {
-	case *ecdh.PublicKey:
-		return k, nil
-	case *ecdsa.PublicKey:
-		return k.ECDH()
-	default:
-		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
-	}
-}
-
-// Parses a PEM-encoded ECDH private key.
-func parsePEMPrivateKey(s string) (*ecdh.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(s))
-	if block == nil {
-		return nil, fmt.Errorf("Not a PEM-encoded string")
-	}
-	if block.Type != "PRIVATE KEY" {
-		return nil, fmt.Errorf("Not a private key")
-	}
-
-	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse ASN.1: %w", err)
-	}
-	switch k := key.(type) {
-	case *ecdh.PrivateKey:
-		return k, nil
-	case *ecdsa.PrivateKey:
-		return k.ECDH()
-	default:
-		return nil, fmt.Errorf("Key is not an ECDH key, instead %T", key)
-	}
-}
-
 // Starts an HTTP server and returns its address.
 //
 // The server will automatically forcibly shut down when the test finishes.
@@ -158,7 +107,7 @@ func TestGetPublicKey(t *testing.T) {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", url, body)
-	_, err = parsePEMPublicKey(body)
+	_, err = keys.ParseECDHPublicKeyAsSPKIPEM(body)
 	if err != nil {
 		t.Errorf("get_public_key returned invalid key: %+v", err)
 	}
@@ -176,7 +125,7 @@ func TestGetPublicKeyRFC3339(t *testing.T) {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", url, body)
-	_, err = parsePEMPublicKey(body)
+	_, err = keys.ParseECDHPublicKeyAsSPKIPEM(body)
 	if err != nil {
 		t.Errorf("get_public_key returned invalid key: %+v", err)
 	}
@@ -194,7 +143,7 @@ func TestGetPrivateKey(t *testing.T) {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", url, body)
-	_, err = parsePEMPrivateKey(body)
+	_, err = keys.ParseECDHPrivateKeyAsPKCS8PEM(body)
 	if err != nil {
 		t.Errorf("get_private_key returned invalid key: %+v", err)
 	}
@@ -212,7 +161,7 @@ func TestGetPrivateKeyRFC3339(t *testing.T) {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", url, body)
-	_, err = parsePEMPrivateKey(body)
+	_, err = keys.ParseECDHPrivateKeyAsPKCS8PEM(body)
 	if err != nil {
 		t.Errorf("get_private_key returned invalid key: %+v", err)
 	}
@@ -249,7 +198,7 @@ func TestGetKeyPair(t *testing.T) {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", pubUrl, body)
-	pub, err := parsePEMPublicKey(body)
+	pub, err := keys.ParseECDHPublicKeyAsSPKIPEM(body)
 	if err != nil {
 		t.Fatalf("get_public_key returned invalid key: %+v", err)
 	}
@@ -259,7 +208,7 @@ func TestGetKeyPair(t *testing.T) {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
 	t.Logf("GET %s returned %s", privUrl, body)
-	priv, err := parsePEMPrivateKey(body)
+	priv, err := keys.ParseECDHPrivateKeyAsPKCS8PEM(body)
 	if err != nil {
 		t.Fatalf("get_private_key returned invalid key: %+v", err)
 	}
