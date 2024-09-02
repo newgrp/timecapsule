@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"hash/maphash"
 	"io"
 	"io/fs"
 	"os"
@@ -47,18 +48,6 @@ func tryReadFile(path string) (contents []byte, exists bool, err error) {
 	return contents, true, nil
 }
 
-// Creates a secret file and reports any errors to the callback channel.
-func createSecretFileInternal(path string, done chan<- error) {
-	secret := make([]byte, secretSize)
-	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
-		done <- fmt.Errorf("insufficient entropy: %w", err)
-	}
-	if err := os.WriteFile(path, secret, fileMode); err != nil {
-		done <- fmt.Errorf("failed to write secret file %s: %w", path, err)
-	}
-	done <- nil
-}
-
 // Associates each time with a root secret.
 type secretManager struct {
 	dir string
@@ -66,8 +55,9 @@ type secretManager struct {
 	name  string
 	pkiID uuid.UUID
 
-	writersMu sync.RWMutex
-	writers   map[string]<-chan error
+	// Shard locking over lowest 8 bits of hash of file path.
+	seed maphash.Seed
+	mus  [256]sync.Mutex
 }
 
 // Constructs a new secret manager using the given working directory.
@@ -103,7 +93,7 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		return nil, fmt.Errorf("invalid UUID: %w", err)
 	}
 
-	return &secretManager{dir: dir, name: name, pkiID: pkiID, writers: make(map[string]<-chan error)}, nil
+	return &secretManager{dir: dir, name: name, pkiID: pkiID, seed: maphash.MakeSeed()}, nil
 }
 
 // The PKI name of this directory.
@@ -116,30 +106,6 @@ func (s *secretManager) PKIID() uuid.UUID {
 	return s.pkiID
 }
 
-// Creates a new secret file. Returns the new secret.
-func (s *secretManager) createSecretFile(path string) ([]byte, error) {
-	var done chan error
-	{
-		s.writersMu.Lock()
-		defer s.writersMu.Unlock()
-
-		if ch, ok := s.writers[path]; ok {
-			if err := <-ch; err != nil {
-				return nil, err
-			}
-		}
-
-		done = make(chan error, 1)
-		s.writers[path] = done
-	}
-
-	go createSecretFileInternal(path, done)
-	if err := <-done; err != nil {
-		return nil, err
-	}
-	return os.ReadFile(path)
-}
-
 // Returns the root secret for the given time.
 //
 // Different times may share a root secret.
@@ -150,6 +116,10 @@ func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	file := t.Truncate(secretInterval).UTC().Format(fileNameLayout)
 	path := path.Join(s.dir, file)
 
+	h := maphash.String(s.seed, path) & 0xff
+	s.mus[h].Lock()
+	defer s.mus[h].Unlock()
+
 	secret, ok, err := tryReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("secret file %s is corrupted: %w", path, err)
@@ -157,5 +127,13 @@ func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	if ok {
 		return secret, nil
 	}
-	return s.createSecretFile(path)
+
+	secret = make([]byte, secretSize)
+	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
+		return nil, fmt.Errorf("insufficient entropy: %w", err)
+	}
+	if err := os.WriteFile(path, secret, fileMode); err != nil {
+		return nil, fmt.Errorf("failed to write secret file %s: %w", path, err)
+	}
+	return secret, nil
 }
