@@ -61,6 +61,8 @@ type simpleHandler = func(url.Values) (any, int, string)
 // makeHandler converts a simpleHandler to an http.HandlerFunc.
 func makeHandler(h simpleHandler) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
+		resp.Header().Add("Access-Control-Allow-Origin", "*")
+
 		query, err := url.ParseQuery(req.URL.RawQuery)
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
