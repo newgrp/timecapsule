@@ -16,10 +16,10 @@
             <textarea id="message" required></textarea>
 
             <label for="datetime">Date and Time:</label>
-            <input type="datetime-local" name="datetime" id="encryptDatetime" required>
+            <input type="datetime-local" name="datetime" id="datetime" required>
 
             <label for="timezone">Timezone:</label>
-            <select name="timezone" id="encryptTimezone" required></select>
+            <select name="timezone" id="timezone" required></select>
 
             <button type="submit" id="encryptButton">Encrypt</button>
         </form>
@@ -31,12 +31,6 @@
         <form id="decryptForm">
             <label for="encryptedMessage">Encrypted Message:</label>
             <textarea id="encryptedMessage" required></textarea>
-
-            <label for="datetime">Date and Time:</label>
-            <input type="datetime-local" name="datetime" id="decryptDatetime" required>
-
-            <label for="timezone">Timezone:</label>
-            <select name="timezone" id="decryptTimezone" required></select>
 
             <button type="submit" id="decryptButton">Decrypt</button>
         </form>

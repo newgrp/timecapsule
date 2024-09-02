@@ -29,7 +29,9 @@ async function encryptMessage(message, datetime) {
     pubKey,
     utf8Encode(message)
   );
+
   return JSON.stringify({
+    time: datetime.utc().format(),
     eph: base64Encode(encryptedData.ephemeralPublicKey),
     ciph: base64Encode(encryptedData.ciphertext),
     hmac: base64Encode(encryptedData.hmac),
@@ -37,10 +39,10 @@ async function encryptMessage(message, datetime) {
 }
 
 // Decrypts a message for the given `dayjs` date and time.
-async function decryptMessage(encryptedMessage, datetime) {
+async function decryptMessage(encryptedMessage) {
   const json = JSON.parse(encryptedMessage);
+  const keyPair = await getPrivateKey(dayjs(json.time));
 
-  const keyPair = await getPrivateKey(datetime);
   const decrypted = await eciesDecrypt(eciesParams, keyPair, {
     ephemeralPublicKey: base64Decode(json.eph),
     ciphertext: base64Decode(json.ciph),
@@ -80,7 +82,7 @@ document
     e.preventDefault();
 
     const message = document.getElementById("message").value;
-    const datetime = dayjs(document.getElementById("encryptDatetime").value);
+    const datetime = dayjs(document.getElementById("datetime").value);
     // TODO: Compute date in timezone.
 
     encryptMessage(message, datetime)
@@ -98,8 +100,6 @@ document
     e.preventDefault();
 
     const encryptedMessage = document.getElementById("encryptedMessage").value;
-    const datetime = dayjs(document.getElementById("decryptDatetime").value);
-    // TODO: Compute date in timezone.
 
     decryptMessage(encryptedMessage, datetime)
       .then((result) => {
