@@ -32,6 +32,9 @@ func init() {
 
 	server, err := server.NewServer(server.Options{
 		NTSServers: ntsServers,
+		PKIOptions: keys.PKIOptions{
+			Name: "Test Server",
+		},
 		SecretsDir: secretsDir,
 	})
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"time"
 
@@ -36,42 +35,16 @@ const (
 	fileMode = 0o400
 )
 
-// Creates or reads a file as a string.
-//
-// If the file already exists, createOrReadFile checks that it has the expected contents (modulo
-// leading and trailing whitespace). If the file does not exist, it is created with the given
-// contents, plus a newline if the contents don't already end with one.
-func createOrReadFile(path string, contents string) (string, error) {
-	finishReadFile := func(got, want string) (string, error) {
-		got = strings.TrimSpace(got)
-		want = strings.TrimSpace(want)
-		if got != want {
-			return "", fmt.Errorf("file did not have expected contents: got %s, want %s", got, want)
-		}
-		return got, nil
+// Reads a file from disk, separating non-existence from other errors.
+func tryReadFile(path string) (contents []byte, exists bool, err error) {
+	contents, err = os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, false, nil
 	}
-	createFile := func(path, contents string) error {
-		if contents == "" || contents[len(contents)-1] != '\n' {
-			contents = fmt.Sprintf("%s\n", contents)
-		}
-		if err := os.WriteFile(path, []byte(contents), fileMode); err != nil {
-			return err
-		}
-		return nil
+	if err != nil {
+		return nil, false, err
 	}
-
-	got, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	}
-	if err == nil {
-		return finishReadFile(string(got), contents)
-	}
-
-	if err = createFile(path, contents); err != nil {
-		return "", err
-	}
-	return contents, nil
+	return contents, true, nil
 }
 
 // Creates a secret file and reports any errors to the callback channel.
@@ -103,30 +76,29 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		return nil, fmt.Errorf("failed to initialize secrets directory: %w", err)
 	}
 
-	var name string
-	var err error
-	if options.Name != "" {
-		name, err = createOrReadFile(path.Join(dir, "name"), options.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create/read name file: %w", err)
-		}
-	} else {
-		n, err := os.ReadFile(path.Join(dir, "name"))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create/read name file: %w", err)
-		}
-		name = string(n)
+	name, err := syncrhonizeConfig(
+		newMemSource(options.Name),
+		newFileSource(path.Join(dir, "name")),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to determine PKI name: %w", err)
 	}
 
-	pkiID := options.ID
-	if (pkiID == uuid.UUID{}) {
-		pkiID = uuid.New()
+	mem := options.ID.String()
+	if (options.ID == uuid.UUID{}) {
+		mem = ""
 	}
-	idStr, err := createOrReadFile(path.Join(dir, "uuid"), pkiID.String())
+	idStr, err := syncrhonizeConfig(
+		newMemSource(mem),
+		newFileSource(path.Join(dir, "uuid")),
+		newGenSource(func() (string, error) {
+			return uuid.NewString(), nil
+		}),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create/read uuid file: %w", err)
+		return nil, fmt.Errorf("failed to determine PKI ID: %w", err)
 	}
-	pkiID, err = uuid.Parse(idStr)
+	pkiID, err := uuid.Parse(idStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid UUID: %w", err)
 	}
@@ -142,18 +114,6 @@ func (s *secretManager) Name() string {
 // The PKI ID of this directory.
 func (s *secretManager) PKIID() uuid.UUID {
 	return s.pkiID
-}
-
-// Reads a secret file from disk, or false if no such file exists.
-func (s *secretManager) readSecretFile(path string) (secret []byte, exists bool, err error) {
-	secret, err = os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, false, nil
-	}
-	if err != nil {
-		return nil, false, fmt.Errorf("secret file %s is corrupted: %w", path, err)
-	}
-	return secret, true, nil
 }
 
 // Creates a new secret file. Returns the new secret.
@@ -190,9 +150,9 @@ func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	file := t.Truncate(secretInterval).UTC().Format(fileNameLayout)
 	path := path.Join(s.dir, file)
 
-	secret, ok, err := s.readSecretFile(path)
+	secret, ok, err := tryReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("secret file %s is corrupted: %w", path, err)
 	}
 	if ok {
 		return secret, nil
