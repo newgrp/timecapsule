@@ -103,9 +103,19 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		return nil, fmt.Errorf("failed to initialize secrets directory: %w", err)
 	}
 
-	name, err := createOrReadFile(path.Join(dir, "name"), options.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create/read name file: %w", err)
+	var name string
+	var err error
+	if options.Name != "" {
+		name, err = createOrReadFile(path.Join(dir, "name"), options.Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create/read name file: %w", err)
+		}
+	} else {
+		n, err := os.ReadFile(path.Join(dir, "name"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create/read name file: %w", err)
+		}
+		name = string(n)
 	}
 
 	pkiID := options.ID
