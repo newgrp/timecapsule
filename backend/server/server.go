@@ -24,11 +24,15 @@ const (
 )
 
 type GetPublicKeyResp struct {
-	SPKI []byte `json:"spki"`
+	PKIName string `json:"pkiName"`
+	PKIID   string `json:"pkiID"`
+	SPKI    []byte `json:"spki"`
 }
 
 type GetPrivateKeyResp struct {
-	PKCS8 []byte `json:"pkcs8"`
+	PKIName string `json:"pkiName"`
+	PKIID   string `json:"pkiID"`
+	PKCS8   []byte `json:"pkcs8"`
 }
 
 // Parses a time string, which may be either:
@@ -142,7 +146,11 @@ func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string)
 		log.Printf("ERROR: Failed to marshal public key for time %s: %+v", t.Format(time.RFC3339), err)
 		return nil, http.StatusInternalServerError, internalError
 	}
-	return &GetPublicKeyResp{SPKI: der}, http.StatusOK, ""
+	return &GetPublicKeyResp{
+		PKIName: s.keys.Name(),
+		PKIID:   s.keys.PKIID().String(),
+		SPKI:    der,
+	}, http.StatusOK, ""
 }
 
 // Simple handler for private key requests.
@@ -178,7 +186,11 @@ func (s *Server) getPrivateKey(query url.Values) (*GetPrivateKeyResp, int, strin
 		log.Printf("ERROR: Failed to marshal private key for time %s: %+v", t.Format(time.RFC3339), err)
 		return nil, http.StatusInternalServerError, internalError
 	}
-	return &GetPrivateKeyResp{PKCS8: der}, http.StatusOK, ""
+	return &GetPrivateKeyResp{
+		PKIName: s.keys.Name(),
+		PKIID:   s.keys.PKIID().String(),
+		PKCS8:   der,
+	}, http.StatusOK, ""
 }
 
 // Registers handlers for the following methods:
