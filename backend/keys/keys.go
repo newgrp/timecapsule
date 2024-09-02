@@ -4,7 +4,14 @@ package keys
 import (
 	"crypto/ecdh"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+type PKIOptions struct {
+	Name string
+	ID   uuid.UUID
+}
 
 // KeyManager associates times to P-256 key pairs.
 type KeyManager struct {
@@ -13,12 +20,22 @@ type KeyManager struct {
 
 // Constructs a new key manager using the given working directory for root
 // secrets.
-func NewKeyManager(secretsDir string) (*KeyManager, error) {
-	secrets, err := newSecretManager(secretsDir)
+func NewKeyManager(options PKIOptions, secretsDir string) (*KeyManager, error) {
+	secrets, err := newSecretManager(options, secretsDir)
 	if err != nil {
 		return nil, err
 	}
 	return &KeyManager{secrets}, nil
+}
+
+// The PKI name of this key manager.
+func (m *KeyManager) Name() string {
+	return m.secrets.Name()
+}
+
+// The PKI ID of this key manager.
+func (m *KeyManager) PKIID() uuid.UUID {
+	return m.secrets.PKIID()
 }
 
 // Returns the P-256 key pair for the given time.

@@ -11,6 +11,7 @@ import (
 
 const (
 	// Environment variables.
+	envPkiName       = "PKI_NAME"
 	envServerAddress = "SERVER_ADDRESS"
 	envServerCert    = "SERVER_CERT"
 	envServerKey     = "SERVER KEY"
@@ -61,6 +62,11 @@ func main() {
 		log.Fatalf("No NTS server provided")
 	}
 	opts.NTSServers = strings.Split(servers, ",")
+
+	opts.PKIOptions.Name, ok = os.LookupEnv(envPkiName)
+	if !ok {
+		log.Fatalf("No PKI name provided")
+	}
 
 	opts.SecretsDir, ok = os.LookupEnv(envSecretsDir)
 	if !ok {

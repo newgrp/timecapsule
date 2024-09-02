@@ -91,6 +91,8 @@ func makeHandler(h simpleHandler) http.HandlerFunc {
 type Options struct {
 	// Addresses of permitted NTS servers.
 	NTSServers []string
+	// PKI options.
+	PKIOptions keys.PKIOptions
 	// Working directory for root secrets.
 	SecretsDir string
 }
@@ -107,7 +109,7 @@ func NewServer(opts Options) (*Server, error) {
 		return nil, err
 	}
 
-	keys, err := keys.NewKeyManager(opts.SecretsDir)
+	keys, err := keys.NewKeyManager(opts.PKIOptions, opts.SecretsDir)
 	if err != nil {
 		return nil, err
 	}

@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/newgrp/timekey/keys"
 )
 
 func TestDeterminism(t *testing.T) {
-	ks, err := keys.NewKeyManager(t.TempDir())
+	ks, err := keys.NewKeyManager(keys.PKIOptions{Name: "Determinism Test"}, t.TempDir())
 	if err != nil {
 		t.Fatalf("Failed to initialize key manager: %+v", err)
 	}
@@ -31,6 +32,8 @@ func TestDeterminism(t *testing.T) {
 
 func TestStability(t *testing.T) {
 	const (
+		uuidStr = "aa625eb2-d75d-4a64-8f5c-22cd4a06db22"
+
 		timeStr = "2024-09-01T16:29:33-07:00"
 		pubPem  = `-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExVW5oMPcttINe6ZtyfHJ7p1SQOrX
@@ -38,6 +41,10 @@ zBkII7T3C0onq4q6kpqYgi3I1UT7bTVJLYscqgQTD5oTHYhw5M87B1az2g==
 -----END PUBLIC KEY-----`
 	)
 
+	pkiID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		t.Fatalf("Test PKI ID is improperly formatted: %+v", err)
+	}
 	time, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
 		t.Fatalf("Test time is improperly formatted: %+v", err)
@@ -51,7 +58,7 @@ zBkII7T3C0onq4q6kpqYgi3I1UT7bTVJLYscqgQTD5oTHYhw5M87B1az2g==
 	if err := os.CopyFS(dir, os.DirFS("./testdata")); err != nil {
 		t.Fatalf("Failed to copy test PKI: %+v", err)
 	}
-	ks, err := keys.NewKeyManager(dir)
+	ks, err := keys.NewKeyManager(keys.PKIOptions{Name: "Stability Test", ID: pkiID}, dir)
 	if err != nil {
 		t.Fatalf("Failed to initialize key manager: %+v", err)
 	}
