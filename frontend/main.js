@@ -89,10 +89,12 @@ document
 
     encryptMessage(message, datetime)
       .then((result) => {
-        document.getElementById("encryptResult").textContent = result;
+        document.getElementById("encryptResultOk").textContent = result;
+        document.getElementById("encryptResultErr").textContent = "";
       })
       .catch((e) => {
-        console.error(e);
+        document.getElementById("encryptResultOk").textContent = "";
+        document.getElementById("encryptResultErr").textContent = e.toString();
       });
   });
 
@@ -105,9 +107,11 @@ document
 
     decryptMessage(encryptedMessage, datetime)
       .then((result) => {
-        document.getElementById("decryptResult").textContent = result;
+        document.getElementById("decryptResultOk").textContent = result;
+        document.getElementById("decryptResultErr").textContent = "";
       })
       .catch((e) => {
-        console.error(e);
+        document.getElementById("decryptResultOk").textContent = "";
+        document.getElementById("decryptResultErr").textContent = e.toString();
       });
   });

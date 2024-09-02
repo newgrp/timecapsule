@@ -60,5 +60,10 @@ button:hover {
     padding: 1rem;
     background-color: #e9ecef;
     border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
     word-break: break-all;
+}
+
+.resultErr {
+    color: #af0000;
 }
