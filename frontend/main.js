@@ -84,8 +84,10 @@ document
     e.preventDefault();
 
     const message = document.getElementById("message").value;
-    const datetime = dayjs(document.getElementById("datetime").value);
-    // TODO: Compute date in timezone.
+    const datetime = dayjs.tz(
+      document.getElementById("datetime").value,
+      document.getElementById("timezone").value
+    );
 
     encryptMessage(message, datetime)
       .then((result) => {

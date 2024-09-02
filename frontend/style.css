@@ -104,7 +104,7 @@ button:hover {
     background-color: #e9ecef;
     border-radius: 4px;
     font-family: 'Courier New', Courier, monospace;
-    word-break: break-all;
+    word-break: break-word;
     height: 6em;
     overflow-y: auto;
 }
