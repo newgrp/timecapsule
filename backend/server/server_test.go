@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/newgrp/timekey/keys"
 	"github.com/newgrp/timekey/server"
 )
@@ -145,6 +146,25 @@ func TestGetPublicKeyRFC3339(t *testing.T) {
 	}
 }
 
+func TestGetPublicKeyWrongPKIID(t *testing.T) {
+	var pkiID = uuid.NewString()
+
+	addr := setupServer(t)
+	target := time.Now().Add(-longEnough)
+	url := createURL(addr, "/v0/get_public_key", url.Values{
+		"pki_id": []string{pkiID},
+		"time":   []string{fmt.Sprint(target.Unix())},
+	})
+
+	status, _, err := httpGet(url)
+	if err != nil {
+		t.Fatalf("Network error in get_public_key: %+v", err)
+	}
+	if status != http.StatusNotFound {
+		t.Errorf("Public key was provided for PKI %s, but it shouldn't have been", pkiID)
+	}
+}
+
 func TestGetPrivateKey(t *testing.T) {
 	addr := setupServer(t)
 	target := time.Now().Add(-longEnough)
@@ -183,6 +203,25 @@ func TestGetPrivateKeyRFC3339(t *testing.T) {
 	}
 }
 
+func TestGetPrivateKeyWrongPKIID(t *testing.T) {
+	var pkiID = uuid.NewString()
+
+	addr := setupServer(t)
+	target := time.Now().Add(-longEnough)
+	url := createURL(addr, "/v0/get_private_key", url.Values{
+		"pki_id": []string{pkiID},
+		"time":   []string{fmt.Sprint(target.Unix())},
+	})
+
+	status, _, err := httpGet(url)
+	if err != nil {
+		t.Fatalf("Network error in get_private_key: %+v", err)
+	}
+	if status != http.StatusNotFound {
+		t.Errorf("Private key was provided for PKI %s, but it shouldn't have been", pkiID)
+	}
+}
+
 func TestGetPrivateKeyForbidden(t *testing.T) {
 	addr := setupServer(t)
 	target := time.Now().Add(longEnough)
@@ -190,12 +229,12 @@ func TestGetPrivateKeyForbidden(t *testing.T) {
 		"time": []string{fmt.Sprint(target.Unix())},
 	})
 
-	status, body, err := httpGet(url)
+	status, _, err := httpGet(url)
 	if err != nil {
-		t.Fatalf("Failed to get private key for %s: %s: %+v", target.Format(time.RFC3339), http.StatusText(status), err)
+		t.Fatalf("Network error in get_private_key: %+v", err)
 	}
 	if status != http.StatusForbidden {
-		t.Errorf("Private key was provided for %s, but it shouldn't have been: %s", target.Format(time.RFC3339), string(body))
+		t.Errorf("Private key was provided for %s, but it shouldn't have been", target.Format(time.RFC3339))
 	}
 }
 

@@ -10,13 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/newgrp/timekey/clock"
 	"github.com/newgrp/timekey/keys"
 )
 
 const (
 	// Request parameter names.
-	argTime = "time"
+	argPKIID = "pki_id"
+	argTime  = "time"
 
 	// REST method names.
 	methodGetPublicKey  = "get_public_key"
@@ -123,6 +125,16 @@ func NewServer(opts Options) (*Server, error) {
 
 // Simple handler for public key requests.
 func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string) {
+	if query.Has(argPKIID) {
+		id, err := uuid.Parse(query.Get(argPKIID))
+		if err != nil {
+			return nil, http.StatusBadRequest, fmt.Sprintf("Invalid UUID: %v", err)
+		}
+		if id != s.keys.PKIID() {
+			return nil, http.StatusNotFound, fmt.Sprintf("Server does not have PKI %s", id.String())
+		}
+	}
+
 	if !query.Has(argTime) {
 		return nil, http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
 	}
@@ -155,6 +167,16 @@ func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string)
 
 // Simple handler for private key requests.
 func (s *Server) getPrivateKey(query url.Values) (*GetPrivateKeyResp, int, string) {
+	if query.Has(argPKIID) {
+		id, err := uuid.Parse(query.Get(argPKIID))
+		if err != nil {
+			return nil, http.StatusBadRequest, fmt.Sprintf("Invalid UUID: %v", err)
+		}
+		if id != s.keys.PKIID() {
+			return nil, http.StatusNotFound, fmt.Sprintf("Server does not have PKI %s", id.String())
+		}
+	}
+
 	if !query.Has(argTime) {
 		return nil, http.StatusBadRequest, fmt.Sprintf("%q parameter is required", argTime)
 	}
