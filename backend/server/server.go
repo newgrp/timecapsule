@@ -25,6 +25,12 @@ const (
 	methodGetPrivateKey = "get_private_key"
 )
 
+var (
+	// Time parameter bounds.
+	minTime = time.Unix(0, 0)
+	maxTime = time.Date(2069, time.December, 31, 23, 59, 59, 0, time.UTC)
+)
+
 type GetPublicKeyResp struct {
 	PKIName string `json:"pkiName"`
 	PKIID   string `json:"pkiID"`
@@ -59,6 +65,9 @@ func parseTime(s string) (time.Time, error) {
 type simpleHandler = func(url.Values) (any, int, string)
 
 // makeHandler converts a simpleHandler to an http.HandlerFunc.
+//
+// This function handles URL query parsing, JSON encoding, HTTP headers, and appending the body with
+// a newline.
 func makeHandler(h simpleHandler) http.HandlerFunc {
 	return func(resp http.ResponseWriter, req *http.Request) {
 		resp.Header().Add("Access-Control-Allow-Origin", "*")
@@ -125,6 +134,16 @@ func NewServer(opts Options) (*Server, error) {
 	return &Server{clock, keys}, nil
 }
 
+// The PKI name of this server.
+func (s *Server) Name() string {
+	return s.keys.Name()
+}
+
+// The PKI ID of this server.
+func (s *Server) PKIID() uuid.UUID {
+	return s.keys.PKIID()
+}
+
 // Simple handler for public key requests.
 func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string) {
 	if query.Has(argPKIID) {
@@ -143,6 +162,9 @@ func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string)
 	t, err := parseTime(query.Get(argTime))
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
+	}
+	if t.Compare(minTime) < 0 || t.Compare(maxTime) > 0 {
+		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", minTime.Format(time.RFC3339), maxTime.Format(time.RFC3339))
 	}
 
 	// Don't expose internal error details to clients. Instead, log the full error but return a
@@ -185,6 +207,9 @@ func (s *Server) getPrivateKey(query url.Values) (*GetPrivateKeyResp, int, strin
 	t, err := parseTime(query.Get(argTime))
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
+	}
+	if t.Compare(minTime) < 0 || t.Compare(maxTime) > 0 {
+		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", minTime.Format(time.RFC3339), maxTime.Format(time.RFC3339))
 	}
 
 	now, err := s.clock.Now()

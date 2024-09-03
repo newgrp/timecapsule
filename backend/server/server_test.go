@@ -24,6 +24,13 @@ const longEnough = 10 * time.Second
 // NTS server for testing. Cloudflare seems like it should usually be reachable.
 var ntsServers = []string{"time.cloudflare.com"}
 
+var (
+	timeTooEarly = time.Date(1966, time.September, 8, 0, 0, 0, 0, time.UTC)
+	timeTooLate  = time.Date(2151, time.April, 16, 0, 0, 0, 0, time.UTC)
+)
+
+var testPKI uuid.UUID
+
 // Initialize the HTTP handlers once, since they apparently have to be global.
 func init() {
 	secretsDir, err := os.MkdirTemp(os.TempDir(), "*")
@@ -41,6 +48,8 @@ func init() {
 	if err != nil {
 		log.Fatalf("Failed to initialize server: %+v", err)
 	}
+
+	testPKI = server.PKIID()
 	server.RegisterHandlers(http.DefaultServeMux)
 }
 
@@ -56,7 +65,7 @@ func createURL(host string, path string, query url.Values) string {
 }
 
 // Wrapper around http.Get that automatically parses the body.
-func httpGet(url string) (status int, body string, err error) {
+func httpGet(t *testing.T, url string) (status int, body string, err error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, "", err
@@ -68,12 +77,13 @@ func httpGet(url string) (status int, body string, err error) {
 		return resp.StatusCode, "", err
 	}
 
+	t.Logf("GET %s returned %s: %s", url, resp.Status, string(b))
 	return resp.StatusCode, string(b), nil
 }
 
 // As httpGet, but returns an error if the status isn't 200 OK.
-func httpGetOK[T any](url string) (*T, error) {
-	status, body, err := httpGet(url)
+func httpGetOK[T any](t *testing.T, url string) (*T, error) {
+	status, body, err := httpGet(t, url)
 	if err != nil {
 		return nil, err
 	}
@@ -115,11 +125,10 @@ func TestGetPublicKey(t *testing.T) {
 		"time": []string{fmt.Sprint(target.Unix())},
 	})
 
-	resp, err := httpGetOK[server.GetPublicKeyResp](url)
+	resp, err := httpGetOK[server.GetPublicKeyResp](t, url)
 	if err != nil {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", url, resp)
 
 	_, err = keys.ParseECDHPublicKeyAsSPKIDER(resp.SPKI)
 	if err != nil {
@@ -134,11 +143,29 @@ func TestGetPublicKeyRFC3339(t *testing.T) {
 		"time": []string{target.Format(time.RFC3339)},
 	})
 
-	resp, err := httpGetOK[server.GetPublicKeyResp](url)
+	resp, err := httpGetOK[server.GetPublicKeyResp](t, url)
 	if err != nil {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", url, resp)
+
+	_, err = keys.ParseECDHPublicKeyAsSPKIDER(resp.SPKI)
+	if err != nil {
+		t.Errorf("get_public_key returned invalid key: %+v", err)
+	}
+}
+
+func TestGetPublicKeyWithPKIID(t *testing.T) {
+	addr := setupServer(t)
+	target := time.Now().Add(-longEnough)
+	url := createURL(addr, "/v0/get_public_key", url.Values{
+		"pki_id": []string{testPKI.String()},
+		"time":   []string{fmt.Sprint(target.Unix())},
+	})
+
+	resp, err := httpGetOK[server.GetPublicKeyResp](t, url)
+	if err != nil {
+		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
+	}
 
 	_, err = keys.ParseECDHPublicKeyAsSPKIDER(resp.SPKI)
 	if err != nil {
@@ -156,12 +183,38 @@ func TestGetPublicKeyWrongPKIID(t *testing.T) {
 		"time":   []string{fmt.Sprint(target.Unix())},
 	})
 
-	status, _, err := httpGet(url)
+	status, _, err := httpGet(t, url)
 	if err != nil {
 		t.Fatalf("Network error in get_public_key: %+v", err)
 	}
 	if status != http.StatusNotFound {
 		t.Errorf("Public key was provided for PKI %s, but it shouldn't have been", pkiID)
+	}
+}
+
+func TestGetPublicKeyTimeOutOfRange(t *testing.T) {
+	addr := setupServer(t)
+	tooEarlyUrl := createURL(addr, "/v0/get_public_key", url.Values{
+		"time": []string{fmt.Sprint(timeTooEarly.Unix())},
+	})
+	tooLateUrl := createURL(addr, "/v0/get_public_key", url.Values{
+		"time": []string{fmt.Sprint(timeTooLate.Unix())},
+	})
+
+	status, _, err := httpGet(t, tooEarlyUrl)
+	if err != nil {
+		t.Fatalf("Network error in get_public_key: %+v", err)
+	}
+	if status != http.StatusBadRequest {
+		t.Errorf("Public key was provided for %s, but it shouldn't have been", timeTooEarly.Format(time.RFC3339))
+	}
+
+	status, _, err = httpGet(t, tooLateUrl)
+	if err != nil {
+		t.Fatalf("Network error in get_public_key: %+v", err)
+	}
+	if status != http.StatusBadRequest {
+		t.Errorf("Public key was provided for %s, but it shouldn't have been", timeTooLate.Format(time.RFC3339))
 	}
 }
 
@@ -172,11 +225,10 @@ func TestGetPrivateKey(t *testing.T) {
 		"time": []string{fmt.Sprint(target.Unix())},
 	})
 
-	resp, err := httpGetOK[server.GetPrivateKeyResp](url)
+	resp, err := httpGetOK[server.GetPrivateKeyResp](t, url)
 	if err != nil {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", url, resp)
 
 	_, err = keys.ParseECDHPrivateKeyAsPKCS8DER(resp.PKCS8)
 	if err != nil {
@@ -191,11 +243,29 @@ func TestGetPrivateKeyRFC3339(t *testing.T) {
 		"time": []string{target.Format(time.RFC3339)},
 	})
 
-	resp, err := httpGetOK[server.GetPrivateKeyResp](url)
+	resp, err := httpGetOK[server.GetPrivateKeyResp](t, url)
 	if err != nil {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", url, resp)
+
+	_, err = keys.ParseECDHPrivateKeyAsPKCS8DER(resp.PKCS8)
+	if err != nil {
+		t.Errorf("get_private_key returned invalid key: %+v", err)
+	}
+}
+
+func TestGetPrivateKeyWithPKIID(t *testing.T) {
+	addr := setupServer(t)
+	target := time.Now().Add(-longEnough)
+	url := createURL(addr, "/v0/get_private_key", url.Values{
+		"pki_id": []string{testPKI.String()},
+		"time":   []string{fmt.Sprint(target.Unix())},
+	})
+
+	resp, err := httpGetOK[server.GetPrivateKeyResp](t, url)
+	if err != nil {
+		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
+	}
 
 	_, err = keys.ParseECDHPrivateKeyAsPKCS8DER(resp.PKCS8)
 	if err != nil {
@@ -213,12 +283,38 @@ func TestGetPrivateKeyWrongPKIID(t *testing.T) {
 		"time":   []string{fmt.Sprint(target.Unix())},
 	})
 
-	status, _, err := httpGet(url)
+	status, _, err := httpGet(t, url)
 	if err != nil {
 		t.Fatalf("Network error in get_private_key: %+v", err)
 	}
 	if status != http.StatusNotFound {
 		t.Errorf("Private key was provided for PKI %s, but it shouldn't have been", pkiID)
+	}
+}
+
+func TestGetPrivateKeyTimeOutOfRange(t *testing.T) {
+	addr := setupServer(t)
+	tooEarlyUrl := createURL(addr, "/v0/get_private_key", url.Values{
+		"time": []string{fmt.Sprint(timeTooEarly.Unix())},
+	})
+	tooLateUrl := createURL(addr, "/v0/get_private_key", url.Values{
+		"time": []string{fmt.Sprint(timeTooLate.Unix())},
+	})
+
+	status, _, err := httpGet(t, tooEarlyUrl)
+	if err != nil {
+		t.Fatalf("Network error in get_private_key: %+v", err)
+	}
+	if status != http.StatusBadRequest {
+		t.Errorf("Private key was provided for %s, but it shouldn't have been", timeTooEarly.Format(time.RFC3339))
+	}
+
+	status, _, err = httpGet(t, tooLateUrl)
+	if err != nil {
+		t.Fatalf("Network error in get_private_key: %+v", err)
+	}
+	if status != http.StatusBadRequest {
+		t.Errorf("Private key was provided for %s, but it shouldn't have been", timeTooLate.Format(time.RFC3339))
 	}
 }
 
@@ -229,7 +325,7 @@ func TestGetPrivateKeyForbidden(t *testing.T) {
 		"time": []string{fmt.Sprint(target.Unix())},
 	})
 
-	status, _, err := httpGet(url)
+	status, _, err := httpGet(t, url)
 	if err != nil {
 		t.Fatalf("Network error in get_private_key: %+v", err)
 	}
@@ -248,21 +344,19 @@ func TestGetKeyPair(t *testing.T) {
 		"time": []string{fmt.Sprint(target.Unix())},
 	})
 
-	pubResp, err := httpGetOK[server.GetPublicKeyResp](pubUrl)
+	pubResp, err := httpGetOK[server.GetPublicKeyResp](t, pubUrl)
 	if err != nil {
 		t.Fatalf("Failed to get public key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", pubUrl, pubResp)
 	pub, err := keys.ParseECDHPublicKeyAsSPKIDER(pubResp.SPKI)
 	if err != nil {
 		t.Errorf("get_public_key returned invalid key: %+v", err)
 	}
 
-	privResp, err := httpGetOK[server.GetPrivateKeyResp](privUrl)
+	privResp, err := httpGetOK[server.GetPrivateKeyResp](t, privUrl)
 	if err != nil {
 		t.Fatalf("Failed to get private key for %s: %+v", target.Format(time.RFC3339), err)
 	}
-	t.Logf("GET %s returned %+v", privUrl, privResp)
 	priv, err := keys.ParseECDHPrivateKeyAsPKCS8DER(privResp.PKCS8)
 	if err != nil {
 		t.Errorf("get_private_key returned invalid key: %+v", err)
