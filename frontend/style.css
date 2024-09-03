@@ -18,12 +18,12 @@ body {
     width: 100%;
     max-width: 800px;
     box-sizing: border-box;
+    text-align: center;
 }
 
 .title-box p {
     margin: 0;
     line-height: 1.5;
-    text-align: center;
 }
 
 .form-container {
