@@ -16,7 +16,11 @@ dayjs.extend(dayjs_plugin_timezone);
 const eciesParams = {
   format: "asn1",
   ecParams: { name: "ECDH", namedCurve: "P-256" },
-  hkdfParams: { name: "HKDF", hash: "SHA-256" },
+  hkdfParams: {
+    name: "HKDF",
+    hash: "SHA-256",
+    info: utf8Encode("Time Capsule Encryption v1"),
+  },
   aesParams: "AES-CTR",
   hmacParams: { name: "HMAC", hash: "SHA-256" },
 };
