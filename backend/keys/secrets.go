@@ -3,11 +3,9 @@ package keys
 import (
 	"crypto/rand"
 	"fmt"
-	"hash/maphash"
 	"io"
 	"os"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,18 +38,17 @@ type secretManager struct {
 
 	name  string
 	pkiID uuid.UUID
-
-	// Shard locking over lowest 8 bits of hash of file path.
-	seed maphash.Seed
-	mus  [256]sync.Mutex
 }
 
 // Constructs a new secret manager using the given working directory.
 func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
+	// Create secrets directory if it does not already exist.
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to initialize secrets directory: %w", err)
 	}
 
+	// Detemine PKI name. Fail if the name is not provided by at least one of `options`` and "name"
+	// file.
 	name, err := syncrhonizeConfig(
 		newMemSource(options.Name),
 		newFileSource(path.Join(dir, "name")),
@@ -60,6 +57,8 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		return nil, fmt.Errorf("failed to determine PKI name: %w", err)
 	}
 
+	// Determine PKI ID. This can be provided by `options`, the "uuid" file, or generated
+	// internally.
 	mem := options.ID.String()
 	if (options.ID == uuid.UUID{}) {
 		mem = ""
@@ -79,7 +78,28 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		return nil, fmt.Errorf("invalid UUID: %w", err)
 	}
 
-	return &secretManager{dir: dir, name: name, pkiID: pkiID, seed: maphash.MakeSeed()}, nil
+	// Ensure that all secrets we might need exist.
+	for t := options.MinTime.UTC().Truncate(secretInterval); t.Compare(options.MaxTime) <= 0; t = t.Add(secretInterval) {
+		path := path.Join(dir, t.Format(fileNameLayout))
+
+		_, ok, err := tryReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("secret file %s is corrupted: %w", path, err)
+		}
+		if ok {
+			continue
+		}
+
+		secret := make([]byte, secretSize)
+		if _, err := io.ReadFull(rand.Reader, secret); err != nil {
+			return nil, fmt.Errorf("insufficient entropy: %w", err)
+		}
+		if err := os.WriteFile(path, secret, secretMode); err != nil {
+			return nil, fmt.Errorf("failed to write secret file %s: %w", path, err)
+		}
+	}
+
+	return &secretManager{dir: dir, name: name, pkiID: pkiID}, nil
 }
 
 // The PKI name of this directory.
@@ -100,26 +120,9 @@ func (s *secretManager) PKIID() uuid.UUID {
 // absolute time are guaranteed to have the same root secret.
 func (s *secretManager) GetSecretForTime(t time.Time) ([]byte, error) {
 	file := t.Truncate(secretInterval).UTC().Format(fileNameLayout)
-	path := path.Join(s.dir, file)
-
-	h := maphash.String(s.seed, path) & 0xff
-	s.mus[h].Lock()
-	defer s.mus[h].Unlock()
-
-	secret, ok, err := tryReadFile(path)
+	secret, err := os.ReadFile(path.Join(s.dir, file))
 	if err != nil {
-		return nil, fmt.Errorf("secret file %s is corrupted: %w", path, err)
-	}
-	if ok {
-		return secret, nil
-	}
-
-	secret = make([]byte, secretSize)
-	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
-		return nil, fmt.Errorf("insufficient entropy: %w", err)
-	}
-	if err := os.WriteFile(path, secret, secretMode); err != nil {
-		return nil, fmt.Errorf("failed to write secret file %s: %w", path, err)
+		return nil, fmt.Errorf("failed to read secret file %s: %w", file, err)
 	}
 	return secret, nil
 }

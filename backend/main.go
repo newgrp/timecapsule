@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/newgrp/timecapsule/server"
 )
@@ -16,6 +17,12 @@ const (
 	envServerKey     = "SERVER KEY"
 	envNTSServers    = "NTS_SERVERS"
 	envSecretsDir    = "SECRETS_DIR"
+)
+
+var (
+	// Time parameter bounds.
+	minTime = time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+	maxTime = time.Date(2049, time.December, 31, 23, 59, 59, 0, time.UTC)
 )
 
 // Infers HTTP server configuration from environment variables.
@@ -61,6 +68,9 @@ func main() {
 		log.Fatalf("No NTS server provided")
 	}
 	opts.NTSServers = strings.Split(servers, ",")
+
+	opts.PKIOptions.MinTime = minTime
+	opts.PKIOptions.MaxTime = maxTime
 
 	opts.SecretsDir, ok = os.LookupEnv(envSecretsDir)
 	if !ok {

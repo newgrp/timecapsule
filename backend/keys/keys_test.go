@@ -10,7 +10,14 @@ import (
 )
 
 func TestDeterminism(t *testing.T) {
-	ks, err := keys.NewKeyManager(keys.PKIOptions{Name: "Determinism Test"}, t.TempDir())
+	ks, err := keys.NewKeyManager(
+		keys.PKIOptions{
+			Name:    "Determinism Test",
+			MinTime: time.Now().Add(-2 * time.Hour),
+			MaxTime: time.Now().Add(2 * time.Hour),
+		},
+		t.TempDir(),
+	)
 	if err != nil {
 		t.Fatalf("Failed to initialize key manager: %+v", err)
 	}
@@ -45,7 +52,7 @@ zBkII7T3C0onq4q6kpqYgi3I1UT7bTVJLYscqgQTD5oTHYhw5M87B1az2g==
 	if err != nil {
 		t.Fatalf("Test PKI ID is improperly formatted: %+v", err)
 	}
-	time, err := time.Parse(time.RFC3339, timeStr)
+	tm, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
 		t.Fatalf("Test time is improperly formatted: %+v", err)
 	}
@@ -58,12 +65,19 @@ zBkII7T3C0onq4q6kpqYgi3I1UT7bTVJLYscqgQTD5oTHYhw5M87B1az2g==
 	if err := os.CopyFS(dir, os.DirFS("./testdata")); err != nil {
 		t.Fatalf("Failed to copy test PKI: %+v", err)
 	}
-	ks, err := keys.NewKeyManager(keys.PKIOptions{Name: "Stability Test", ID: pkiID}, dir)
+	ks, err := keys.NewKeyManager(
+		keys.PKIOptions{
+			Name: "Stability Test", ID: pkiID,
+			MinTime: tm.Add(-time.Hour),
+			MaxTime: tm.Add(time.Hour),
+		},
+		dir,
+	)
 	if err != nil {
 		t.Fatalf("Failed to initialize key manager: %+v", err)
 	}
 
-	k, err := ks.GetKeyForTime(time)
+	k, err := ks.GetKeyForTime(tm)
 	if err != nil {
 		t.Fatalf("Failed to get key for test time: %+v", err)
 	}

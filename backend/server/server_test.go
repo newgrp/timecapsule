@@ -25,6 +25,11 @@ const longEnough = 10 * time.Second
 var ntsServers = []string{"time.cloudflare.com"}
 
 var (
+	minTime = time.Date(2020, time.January, 1, 0, 0, 0, 0, time.UTC)
+	maxTime = time.Date(2029, time.December, 31, 23, 59, 59, 0, time.UTC)
+)
+
+var (
 	timeTooEarly = time.Date(1966, time.September, 8, 0, 0, 0, 0, time.UTC)
 	timeTooLate  = time.Date(2151, time.April, 16, 0, 0, 0, 0, time.UTC)
 )
@@ -41,7 +46,9 @@ func init() {
 	server, err := server.NewServer(server.Options{
 		NTSServers: ntsServers,
 		PKIOptions: keys.PKIOptions{
-			Name: "Test Server",
+			Name:    "Test Server",
+			MinTime: minTime,
+			MaxTime: maxTime,
 		},
 		SecretsDir: secretsDir,
 	})

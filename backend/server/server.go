@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,8 +49,7 @@ type GetPrivateKeyResp struct {
 //   - integer seconds since Unix epoch
 //   - RFC 3339 formatted time string
 func parseTime(s string) (time.Time, error) {
-	var sec int64
-	if _, err := fmt.Sscanf(s, "%d", &sec); err == nil {
+	if sec, err := strconv.ParseInt(s, 10, 64); err == nil {
 		return time.Unix(sec, 0), nil
 	}
 
