@@ -26,12 +26,6 @@ const (
 	methodGetPrivateKey = "get_private_key"
 )
 
-var (
-	// Time parameter bounds.
-	minTime = time.Unix(0, 0)
-	maxTime = time.Date(2069, time.December, 31, 23, 59, 59, 0, time.UTC)
-)
-
 type GetPublicKeyResp struct {
 	PKIName string `json:"pkiName"`
 	PKIID   string `json:"pkiID"`
@@ -116,8 +110,10 @@ type Options struct {
 
 // Server that handles HTTP requests for time keys.
 type Server struct {
-	clock *clock.SecureClock
-	keys  *keys.KeyManager
+	clock   *clock.SecureClock
+	keys    *keys.KeyManager
+	minTime time.Time
+	maxTime time.Time
 }
 
 func NewServer(opts Options) (*Server, error) {
@@ -131,7 +127,12 @@ func NewServer(opts Options) (*Server, error) {
 		return nil, err
 	}
 
-	return &Server{clock, keys}, nil
+	return &Server{
+		clock:   clock,
+		keys:    keys,
+		minTime: opts.PKIOptions.MinTime,
+		maxTime: opts.PKIOptions.MaxTime,
+	}, nil
 }
 
 // The PKI name of this server.
@@ -163,8 +164,8 @@ func (s *Server) getPublicKey(query url.Values) (*GetPublicKeyResp, int, string)
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
 	}
-	if t.Compare(minTime) < 0 || t.Compare(maxTime) > 0 {
-		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", minTime.Format(time.RFC3339), maxTime.Format(time.RFC3339))
+	if t.Compare(s.minTime) < 0 || t.Compare(s.maxTime) > 0 {
+		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", s.minTime.Format(time.RFC3339), s.maxTime.Format(time.RFC3339))
 	}
 
 	// Don't expose internal error details to clients. Instead, log the full error but return a
@@ -208,12 +209,13 @@ func (s *Server) getPrivateKey(query url.Values) (*GetPrivateKeyResp, int, strin
 	if err != nil {
 		return nil, http.StatusBadRequest, fmt.Sprintf("Invalid %q paremter: %v", argTime, err)
 	}
-	if t.Compare(minTime) < 0 || t.Compare(maxTime) > 0 {
-		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", minTime.Format(time.RFC3339), maxTime.Format(time.RFC3339))
+	if t.Compare(s.minTime) < 0 || t.Compare(s.maxTime) > 0 {
+		return nil, http.StatusBadRequest, fmt.Sprintf("Time out of range: must be between %s and %s", s.minTime.Format(time.RFC3339), s.maxTime.Format(time.RFC3339))
 	}
 
 	now, err := s.clock.Now()
 	if err != nil {
+		log.Printf("ERROR: Failed to determine the current time securely: %+v", err)
 		return nil, http.StatusInternalServerError, "Server could securely determine the current time"
 	}
 	if t.After(now) {

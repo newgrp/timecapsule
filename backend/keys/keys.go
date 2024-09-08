@@ -3,14 +3,11 @@ package keys
 
 import (
 	"crypto/ecdh"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-var ErrTimeOutOfRange = errors.New("time is out of range")
 
 type PKIOptions struct {
 	Name    string
@@ -55,17 +52,13 @@ func (m *KeyManager) PKIID() uuid.UUID {
 // Times are normalized to UTC time internally, so different time.Time values that refer to the
 // same absolute time are guaranteed to correspond to the same key.
 func (m *KeyManager) GetKeyForTime(t time.Time) (*ecdh.PrivateKey, error) {
-	if t.Compare(m.minTime) < 0 || t.Compare(m.maxTime) > 0 {
-		return nil, fmt.Errorf("%w: only times between %s and %s are supported", ErrTimeOutOfRange, m.minTime.Format(time.RFC3339), m.maxTime.Format(time.RFC3339))
-	}
-
 	secret, err := m.secrets.GetSecretForTime(t)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to determine secret for %s: %+v", t.Format(time.RFC3339), err)
 	}
 	key, err := deriveKeyForTime(secret, t)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to derive keypair for %s: %+v", t.Format(time.RFC3339), err)
 	}
 	return key, nil
 }
