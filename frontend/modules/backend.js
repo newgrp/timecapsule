@@ -1,6 +1,6 @@
 import { base64Decode } from "./bytes.js";
 
-const backendURL = "http://localhost:5418";
+const backendURL = "https://api.timecapsulator.com";
 
 // Fetches the public key for a given `dayjs` date and time from the backend.
 export async function getPublicKey(datetime) {
