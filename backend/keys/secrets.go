@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -67,7 +68,9 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 		newMemSource(mem),
 		newFileSource(path.Join(dir, "uuid")),
 		newGenSource(func() (string, error) {
-			return uuid.NewString(), nil
+			u := uuid.New()
+			log.Printf("Created new PKI ID: %s", u)
+			return u.String(), nil
 		}),
 	)
 	if err != nil {
@@ -90,6 +93,7 @@ func newSecretManager(options PKIOptions, dir string) (*secretManager, error) {
 			continue
 		}
 
+		log.Printf("Creating new secret file: %s", path)
 		secret := make([]byte, secretSize)
 		if _, err := io.ReadFull(rand.Reader, secret); err != nil {
 			return nil, fmt.Errorf("insufficient entropy: %w", err)
