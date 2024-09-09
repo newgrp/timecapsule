@@ -14,7 +14,7 @@ const (
 	// Environment variables.
 	envServerAddress = "SERVER_ADDRESS"
 	envServerCert    = "SERVER_CERT"
-	envServerKey     = "SERVER KEY"
+	envServerKey     = "SERVER_KEY"
 	envNTSServers    = "NTS_SERVERS"
 	envSecretsDir    = "SECRETS_DIR"
 )
